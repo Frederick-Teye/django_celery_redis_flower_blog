@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# This script waits for the database to be ready and then runs the main application command.
-
 # The host and port for the database are read from environment variables.
 DB_HOST=${DB_HOST:-db}
 DB_PORT=${DB_PORT:-5432}
