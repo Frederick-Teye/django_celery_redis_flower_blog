@@ -34,8 +34,13 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy the application code
 COPY . .
 
+# Ensure the staticfiles directory exists and has the correct permissions
+RUN mkdir -p /app/staticfiles && chown -R appuser:appgroup /app/staticfiles
+
 # Change ownership of the application directory to the new user
 RUN chown -R appuser:appgroup /app
+
+RUN chmod +x /app/entrypoint.sh
 
 # Switch to the non-root user
 USER appuser
