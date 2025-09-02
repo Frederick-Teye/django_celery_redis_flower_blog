@@ -1,0 +1,45 @@
+# Ignore Git-related files
+
+.git
+.gitignore
+
+# Ignore Python-specific files and directories
+
+**pycache**/
+_.pyc
+_.pyd
+_.pyo
+.Python
+env/
+venv/
+.venv/
+_.env # Crucial: Your actual .env file should NOT be in the Docker image!
+.python-version
+
+# Ignore Django-specific files
+
+\*.sqlite3
+/media/ # User-uploaded files (will be on S3 in production)
+/static_cdn/ # Collected static files (will be served via WhiteNoise/S3 in production)
+
+# Ignore IDE/Editor specific files
+
+.idea/
+.vscode/
+\*.iml
+.project
+.settings/
+
+# Ignore general log files
+
+\*.log
+
+# Celery specific files
+
+celerybeat-schedule # Celery Beat scheduler file
+celeryd.pid # Celery worker PID file
+
+# Docker build files themselves (no need to copy them into the image being built)
+
+Dockerfile
+docker-compose.yml
