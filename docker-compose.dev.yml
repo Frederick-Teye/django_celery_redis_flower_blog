@@ -2,6 +2,7 @@ services:
   # Django Web Application Service
   web:
     build: .
+    user: appuser
     command: /app/entrypoint.sh
     volumes:
       - .:/app
@@ -14,8 +15,8 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SITE_DOMAIN=localhost:8000
-      - SITE_NAME=TTS_Project Dev
-      - DJANGO_SETTINGS_MODULE=tts_project.settings.dev
+      - SITE_NAME=SCRAPPER_Project
+      - DJANGO_SETTINGS_MODULE=core.settings
     depends_on:
       - db
       - redis
