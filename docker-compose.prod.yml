@@ -1,0 +1,61 @@
+services:
+  web:
+    build: .
+    user: appuser
+    command: gunicorn tts_project.wsgi:application --bind 0.0.0.0:8000
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: 0.4
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app_network
+
+  celery_worker:
+    build: .
+    command: celery -A core.settings.celery worker -l info
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: 0.4
+    depends_on:
+      - redis
+    networks:
+      - app_network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.2
+    networks:
+      - app_network
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    mem_limit: 192m
+    cpus: 0.3
+    networks:
+      - app_network
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.2
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  db_data:
