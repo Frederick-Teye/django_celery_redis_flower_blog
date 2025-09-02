@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.Python
+env/
+venv/
+.venv/ # Common for venv created by VS Code or newer pip versions
+*.env # Crucial: do NOT commit your actual environment variables!
+.python-version # For pyenv
+.env
+
+# Django
+*.sqlite3
+/media/ # Directory for user-uploaded files (these should be stored on S3 in production)
+/static_cdn/ # Directory for collected static files (these will also be on S3 in production)
+migrations/
+
+# Operating System Files
+.DS_Store # macOS
+.envrc # direnv config
+Thumbs.db # Windows
+ehthumbs.db # Windows
+.directory # Linux (KDE)
+
+# IDEs
+.idea/
+.vscode/ # VS Code
+*.iml # IntelliJ modules
+.project # Eclipse
+.settings/ # Eclipse
+
+# Docker
+*.log # General log files
+.dockerignore # We keep this in git, but sometimes people exclude it
+docker-compose.yml # We will keep this in git as it defines the environment
+Dockerfile # We will keep this in git
+
+# Celery
+celerybeat-schedule # Celery Beat scheduler file
+celeryd.pid # Celery worker PID file
