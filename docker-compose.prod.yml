@@ -2,7 +2,7 @@ services:
   web:
     build: .
     user: appuser
-    command: gunicorn tts_project.wsgi:application --bind 0.0.0.0:8000
+    command: ["gunicorn","core.wsgi:application","--bind","0.0.0.0:8000"]
     restart: unless-stopped
     mem_limit: 192m
     cpus: 0.4
@@ -14,7 +14,7 @@ services:
 
   celery_worker:
     build: .
-    command: celery -A core.settings.celery worker -l info
+    command: celery -A core.celery worker -l info
     restart: unless-stopped
     mem_limit: 192m
     cpus: 0.4
