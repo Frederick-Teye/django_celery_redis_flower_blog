@@ -49,4 +49,4 @@ USER appuser
 EXPOSE 8000
 
 # Run the entrypoint script
-CMD ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
