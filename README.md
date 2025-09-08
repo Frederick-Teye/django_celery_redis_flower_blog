@@ -229,6 +229,8 @@ python manage.py migrate --noinput
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
+
+exec "$@"
 ```
 
 Run the command below to give you permission to execute it when we run docker-compose.dev.yml in the future:
@@ -250,45 +252,48 @@ chmod +x ./entrypoint.sh
    Populate it with the code below:
 
 ```yaml
+version: "3.8"
 services:
   # Django Web Application Service
   web:
     build: .
-    user: appuser
-    command: /app/entrypoint.sh
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     volumes:
       - .:/app
-      - static_data:/app/static_cdn
+      - static_data:/app/staticfiles
+    user: appuser
     ports:
       - "8000:8000"
     # We use env_file to load the bulk of our settings like SECRET_KEY, DEBUG, etc.
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - SITE_DOMAIN=localhost:8000
-      - SITE_NAME=SCRAPPER_Project Dev
+      - SITE_NAME=SCRAPPER_Project
       - DJANGO_SETTINGS_MODULE=core.settings
     depends_on:
       - db
       - redis
+    restart: on-failure
     networks:
       - app_network
 
   # Celery Worker Service
   celery_worker:
     build: .
-    command: celery -A core.celery worker -l info
+    command: celery -A core worker -l info
     volumes:
       - .:/app
-      - media_data:/app/media
     env_file:
       - .env
-    # Add the user directive
+    environment:
+      CELERY_BROKER_URL: ${REDIS_URL}
+      CELERY_RESULT_BACKEND: ${REDIS_URL}
     user: "appuser:appgroup"
     depends_on:
       - web
       - redis
+    restart: on-failure
     networks:
       - app_network
 
@@ -311,7 +316,9 @@ services:
   # Flower Service
   flower:
     image: mher/flower
-    command: ["celery", "-A", "core", "flower", "--port=5555"]
+    command: celery -A core flower --broker=${CELERY_BROKER_URL} --port=5555
+    env_file:
+      - .env
     ports:
       - "5555:5555"
     depends_on:
@@ -336,7 +343,6 @@ services:
 volumes:
   pg_data:
   redis_data:
-  media_data:
   static_data:
 
 # Define a custom bridge network for internal communication.
@@ -352,7 +358,7 @@ networks:
 ##### web
 
 - **build**: Specifies the build context for the Docker image, using the current directory (`.`).
-- **command**: Defines the command to run when the container starts, pointing to the entrypoint script.
+- **command**: Supplies the development server process that the image’s ENTRYPOINT will exec (e.g. ["python","manage.py","runserver","0.0.0.0:8000"]).
 - **volumes**:
   - Mounts the current directory to `/app` in the container.
   - Mounts a named volume `static_data` to `/app/static_cdn` for static files.
@@ -424,7 +430,7 @@ services:
   web:
     build: .
     user: appuser
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    command: ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
     restart: unless-stopped
     mem_limit: 192m
     cpus: 0.4
@@ -490,7 +496,7 @@ volumes:
 ##### web
 
 - **build**: Specifies the build context for the Docker image, using the current directory (`.`).
-- **command**: Runs the Gunicorn server to serve the Django application, binding to all interfaces on port 8000.
+- **command**: Supplies the production WSGI server process that the image’s ENTRYPOINT will exec (e.g. ["gunicorn","core.wsgi:application","--bind","0.0.0.0:8000"]).
 - **restart**: Configures the container to restart unless stopped manually.
 - **mem_limit**: Limits the memory usage to **192 MB**.
 - **cpus**: Allocates **0.4 CPU** units for this service.
@@ -714,7 +720,64 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 ```
 
-## Create celery.py in the root directory.
+6. Add the following celery settings at the bottom of the settings.py file:
+
+```python
+# Celery Settings
+CELERY_BROKER_URL = config("REDIS_URL", default="redis://redis:6379/0")
+CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://redis:6379/0")
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Africa/Accra"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 5 * 60
+```
+
+### Celery Settings Explanation
+
+#### CELERY_BROKER_URL
+
+- **Value**: `config("REDIS_URL", default="redis://redis:6379/0")`
+- **Description**: Specifies the URL of the message broker that Celery will use to send and receive messages. Defaults to a Redis server running on `localhost` at port `6379`, using database `0`.
+
+#### CELERY_RESULT_BACKEND
+
+- **Value**: `config("REDIS_URL", default="redis://redis:6379/0")`
+- **Description**: Defines where Celery will store the results of tasks. By default, it uses the same Redis URL as the broker.
+
+#### CELERY_ACCEPT_CONTENT
+
+- **Value**: `["json"]`
+- **Description**: Indicates the content types that Celery will accept for tasks. In this case, it is set to accept only JSON.
+
+#### CELERY_TASK_SERIALIZER
+
+- **Value**: `"json"`
+- **Description**: Specifies the serialization format for tasks when they are sent to the broker. Tasks will be serialized in JSON format.
+
+#### CELERY_RESULT_SERIALIZER
+
+- **Value**: `"json"`
+- **Description**: Defines the serialization format for the results of tasks. It is also set to JSON.
+
+#### CELERY_TIMEZONE
+
+- **Value**: `"Africa/Accra"`
+- **Description**: Sets the timezone for the Celery worker. It is configured to use the timezone of Accra, Ghana.
+
+#### CELERY_TASK_TRACK_STARTED
+
+- **Value**: `True`
+- **Description**: Enables tracking of task states, allowing you to see when a task has started.
+
+#### CELERY_TASK_TIME_LIMIT
+
+- **Value**: `5 * 60`
+- **Description**: Sets a time limit for tasks, in seconds. Here, it is set to 5 minutes (5 \* 60 seconds). If a task exceeds this time limit, it will be terminated.
+
+## Create celery.py in the core directory.
 
 After creating celery.py, the file tree of the project should look like this:
 
@@ -722,6 +785,7 @@ After creating celery.py, the file tree of the project should look like this:
 django_celery_redis_tutorial
 ├── core/
 │   ├──__init__.py
+│   ├── celery.py
 │   ├── asgi.py
 │   ├── settings.py
 │   ├── urls.py
@@ -729,7 +793,6 @@ django_celery_redis_tutorial
 ├── .dockerignore
 ├── .env
 ├── .gitignore
-├── celery.py
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
 ├── Dockerfile
