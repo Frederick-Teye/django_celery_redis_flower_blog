@@ -1,45 +1,48 @@
+version: "3.8"
 services:
   # Django Web Application Service
   web:
     build: .
-    user: appuser
-    command: /app/entrypoint.sh
+    command: ["python","manage.py","runserver","0.0.0.0:8000"]
     volumes:
       - .:/app
-      - static_data:/app/static_cdn
+      - static_data:/app/staticfiles
+    user: appuser
     ports:
       - "8000:8000"
     # We use env_file to load the bulk of our settings like SECRET_KEY, DEBUG, etc.
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - SITE_DOMAIN=localhost:8000
       - SITE_NAME=SCRAPPER_Project
       - DJANGO_SETTINGS_MODULE=core.settings
     depends_on:
       - db
       - redis
+    restart: on-failure
     networks:
       - app_network
 
   # Celery Worker Service
   celery_worker:
     build: .
-    command: celery -A core.settings.celery worker -l info
+    command: celery -A core worker -l info
     volumes:
       - .:/app
-      - media_data:/app/media
     env_file:
       - .env
-    # Add the user directive
+    environment:
+      CELERY_BROKER_URL: ${REDIS_URL}
+      CELERY_RESULT_BACKEND: ${REDIS_URL}
     user: "appuser:appgroup"
     depends_on:
       - web
       - redis
+    restart: on-failure
     networks:
       - app_network
-      
+
   # Redis Service
   redis:
     image: redis:7-alpine
@@ -59,7 +62,9 @@ services:
   # Flower Service
   flower:
     image: mher/flower
-    command: ["celery", "-A", "core.settings", "flower", "--port=5555"]
+    command: celery -A core flower --broker=${CELERY_BROKER_URL} --port=5555
+    env_file:
+      - .env
     ports:
       - "5555:5555"
     depends_on:
@@ -84,7 +89,6 @@ services:
 volumes:
   pg_data:
   redis_data:
-  media_data:
   static_data:
 
 # Define a custom bridge network for internal communication.
