@@ -3,7 +3,10 @@ services:
   # Django Web Application Service
   web:
     build: .
-    command: ["python","manage.py","runserver","0.0.0.0:8000"]
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_data:/app/staticfiles
@@ -61,8 +64,10 @@ services:
 
   # Flower Service
   flower:
-    image: mher/flower
+    build: .
     command: celery -A core flower --broker=${CELERY_BROKER_URL} --port=5555
+    volumes:
+      - .:/app
     env_file:
       - .env
     ports:
@@ -70,6 +75,8 @@ services:
     depends_on:
       - redis
       - celery_worker
+    networks:
+      - app_network
 
   # PostgreSQL Database Service
   db:

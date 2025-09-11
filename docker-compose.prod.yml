@@ -2,7 +2,10 @@ services:
   web:
     build: .
     user: appuser
-    command: ["gunicorn","core.wsgi:application","--bind","0.0.0.0:8000"]
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py migrate &&
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     restart: unless-stopped
     mem_limit: 192m
     cpus: 0.4
