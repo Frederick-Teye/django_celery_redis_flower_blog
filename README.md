@@ -96,7 +96,7 @@ echo -e "celery==5.5.3
 beautifulsoup4==4.13.4
 python-decouple==3.8
 redis==5.3.0
-requests==2.32.4
+requests==2.32.5
 psycopg2-binary
 flower" >> requirements.txt
 ```
@@ -223,13 +223,7 @@ while ! python -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_
 done
 echo "Redis started"
 
-# Now that the database is ready, run the Django commands
-echo "Running migrations..."
-python manage.py migrate --noinput
-
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
+# hand over control to whatever command was passed (from docker-compose.yml)
 exec "$@"
 ```
 
@@ -257,7 +251,10 @@ services:
   # Django Web Application Service
   web:
     build: .
-    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_data:/app/staticfiles
@@ -315,8 +312,10 @@ services:
 
   # Flower Service
   flower:
-    image: mher/flower
+    build: .
     command: celery -A core flower --broker=${CELERY_BROKER_URL} --port=5555
+    volumes:
+      - .:/app
     env_file:
       - .env
     ports:
@@ -324,6 +323,8 @@ services:
     depends_on:
       - redis
       - celery_worker
+    networks:
+      - app_network
 
   # PostgreSQL Database Service
   db:
@@ -430,7 +431,10 @@ services:
   web:
     build: .
     user: appuser
-    command: ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py migrate &&
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     restart: unless-stopped
     mem_limit: 192m
     cpus: 0.4
@@ -682,6 +686,8 @@ celeryd.pid # Celery worker PID file
 Dockerfile
 docker-compose.yml
 ```
+---
+
 
 ## Let's Change Some Settings in setting.py
 
@@ -790,6 +796,7 @@ django_celery_redis_tutorial
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
+│
 ├── .dockerignore
 ├── .env
 ├── .gitignore
@@ -820,3 +827,73 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Autodiscover tasks
 app.autodiscover_tasks()
 ```
+---
+
+## Let's set up core/ to make sure that celery app is loaded when Django is started
+
+Now, put the snippet:
+
+```python
+from .celery import app as celery_app
+
+__all__ = ("celery_app",)
+```
+
+in your Django project’s `__init__.py` (`core/__init__.py`).
+
+---
+
+### What it does
+
+1. **Imports the Celery app instance**
+
+   * The `core/celery.py` file defines the Celery application:
+
+     ```python
+     from celery import Celery
+     app = Celery("core")
+     ```
+   * By importing it in `__init__.py`, you make sure that whenever Django loads the project, the Celery app is also available.
+
+2. **Registers it as a top-level attribute (`core.celery_app`)**
+
+   * With `__all__ = ("celery_app",)`, you’re explicitly saying:
+
+     > “When someone does `from core import *`, only expose `celery_app`.”
+   * It’s a way of controlling what’s exported and making `celery_app` the official public symbol of your project.
+
+3. **Enables Django auto-discovery of tasks**
+
+   * Celery uses `celery_app.autodiscover_tasks()` in `celery.py` to automatically find `tasks.py` inside your Django apps.
+
+   * By making `celery_app` importable from `core`, Celery workers can start with:
+
+     ```sh
+     celery -A core worker -l info
+     ```
+
+     because Celery will look for `celery_app` inside the `core` package.
+
+   * If you didn’t have this, you’d need to run:
+
+     ```sh
+     celery -A core.celery worker -l info
+     ```
+
+     (longer and less standard).
+
+---
+
+### In short
+
+Putting that in `__init__.py` makes:
+
+* Your Celery app discoverable at the project level (`core.celery_app`).
+* The command `celery -A core worker` work (instead of needing `core.celery`).
+* Django + Celery integration smoother and consistent with the docs.
+
+---
+
+`Tip`: If you remove it, Celery won’t break — you’d just have to change your `-A` argument to `core.celery`.
+
+---
