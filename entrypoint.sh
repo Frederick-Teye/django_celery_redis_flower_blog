@@ -22,11 +22,5 @@ while ! python -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_
 done
 echo "Redis started"
 
-# Now that the database is ready, run the Django commands
-echo "Running migrations..."
-python manage.py migrate --noinput
-
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
+# hand over control to whatever command was passed (from docker-compose.yml)
 exec "$@"
