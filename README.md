@@ -967,9 +967,21 @@ django_celery_redis_tutorial
 └── requirements.txt
 ```
 
-Before we move on, let's create a urls.py file in web_scrapper/.
-Run the command below in your terminal to create web_scrapper/urls.py:
+Before we move on, let's create a `urls.py` file in `web_scrapper/` and update `core/settings.py` about web_scrapper app.
+Run the command below in your terminal to create urls.py in web_scrapper:
 
 ```bash
 touch web_scrapper/urls.py
 ```
+
+Open core/settings.py and modify INSTALLED_APPS by appending INSTALLED_APPS with "web_scrapper.apps.WebScrapperConfig":
+
+```python
+
+INSTALLED_APPS = [
+    ...,
+    ...,
+    "web_scrapper.apps.WebScrapperConfig",
+]
+```
+
