@@ -897,3 +897,79 @@ Putting that in `__init__.py` makes:
 `Tip`: If you remove it, Celery won’t break — you’d just have to change your `-A` argument to `core.celery`.
 
 ---
+
+## Let run the docker-compose to  see the state of our code so far
+
+Copy and past the code below:
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+After eveything finish downloading and the containers and volumes are created, open http://localhost:8000 in the browser.
+You should see the Django welcome page there.
+
+## Let's create the web_scrapper app
+
+First of all, let's give appuser permission to create apps in /app.
+Open a new terminal and run the code below:
+
+```bash
+docker-compose -f docker-compose.dev.yml exec web id appuser
+```
+The command above just outputed the uid for appuser and gid for appgroup.
+Run the command below to give appuser the permission:
+
+```bash
+sudo chown -R <uid>:<gid> .
+```
+
+Now, run the command below to create web_scrapper app:
+
+```bash
+docker-compose -f docker-compose.dev.yml exec web python manage.py startapp web_scrapper
+```
+
+We need to give your host user permission to be able to edit the files again. Run the command below:
+```bash
+sudo chown -R $USER:$USER .
+```
+
+The `django_celery_redis_tutorial` directory tree should look like this:
+```tree
+django_celery_redis_tutorial
+├── core/
+│   ├──__init__.py
+│   ├── celery.py
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+│
+├── media
+├── static
+├── staticfiles
+│
+├── web_scrapper/
+│   ├──__init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── tests.py
+│   └── views.py
+│
+├── .dockerignore
+├── .env
+├── .gitignore
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
+├── Dockerfile
+├── entrypoint.sh
+├── manage.py
+└── requirements.txt
+```
+
+Before we move on, let's create a urls.py file in web_scrapper/.
+Run the command below in your terminal to create web_scrapper/urls.py:
+
+```bash
+touch web_scrapper/urls.py
+```
