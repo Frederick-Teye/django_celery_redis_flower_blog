@@ -98,7 +98,8 @@ python-decouple==3.8
 redis==5.3.0
 requests==2.32.5
 psycopg2-binary
-flower" >> requirements.txt
+flower
+django-widget-tweaks" >> requirements.txt
 ```
 
 ## Setting Up Docker
@@ -686,8 +687,8 @@ celeryd.pid # Celery worker PID file
 Dockerfile
 docker-compose.yml
 ```
----
 
+---
 
 ## Let's Change Some Settings in setting.py
 
@@ -827,6 +828,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Autodiscover tasks
 app.autodiscover_tasks()
 ```
+
 ---
 
 ## Let's set up core/ to make sure that celery app is loaded when Django is started
@@ -847,26 +849,28 @@ in your Django project’s `__init__.py` (`core/__init__.py`).
 
 1. **Imports the Celery app instance**
 
-   * The `core/celery.py` file defines the Celery application:
+   - The `core/celery.py` file defines the Celery application:
 
      ```python
      from celery import Celery
      app = Celery("core")
      ```
-   * By importing it in `__init__.py`, you make sure that whenever Django loads the project, the Celery app is also available.
+
+   - By importing it in `__init__.py`, you make sure that whenever Django loads the project, the Celery app is also available.
 
 2. **Registers it as a top-level attribute (`core.celery_app`)**
 
-   * With `__all__ = ("celery_app",)`, you’re explicitly saying:
+   - With `__all__ = ("celery_app",)`, you’re explicitly saying:
 
      > “When someone does `from core import *`, only expose `celery_app`.”
-   * It’s a way of controlling what’s exported and making `celery_app` the official public symbol of your project.
+
+   - It’s a way of controlling what’s exported and making `celery_app` the official public symbol of your project.
 
 3. **Enables Django auto-discovery of tasks**
 
-   * Celery uses `celery_app.autodiscover_tasks()` in `celery.py` to automatically find `tasks.py` inside your Django apps.
+   - Celery uses `celery_app.autodiscover_tasks()` in `celery.py` to automatically find `tasks.py` inside your Django apps.
 
-   * By making `celery_app` importable from `core`, Celery workers can start with:
+   - By making `celery_app` importable from `core`, Celery workers can start with:
 
      ```sh
      celery -A core worker -l info
@@ -874,7 +878,7 @@ in your Django project’s `__init__.py` (`core/__init__.py`).
 
      because Celery will look for `celery_app` inside the `core` package.
 
-   * If you didn’t have this, you’d need to run:
+   - If you didn’t have this, you’d need to run:
 
      ```sh
      celery -A core.celery worker -l info
@@ -888,9 +892,9 @@ in your Django project’s `__init__.py` (`core/__init__.py`).
 
 Putting that in `__init__.py` makes:
 
-* Your Celery app discoverable at the project level (`core.celery_app`).
-* The command `celery -A core worker` work (instead of needing `core.celery`).
-* Django + Celery integration smoother and consistent with the docs.
+- Your Celery app discoverable at the project level (`core.celery_app`).
+- The command `celery -A core worker` work (instead of needing `core.celery`).
+- Django + Celery integration smoother and consistent with the docs.
 
 ---
 
@@ -898,12 +902,14 @@ Putting that in `__init__.py` makes:
 
 ---
 
-## Let run the docker-compose to  see the state of our code so far
+## Let run the docker-compose to see the state of our code so far
 
 Copy and past the code below:
+
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
 ```
+
 After eveything finish downloading and the containers and volumes are created, open http://localhost:8000 in the browser.
 You should see the Django welcome page there.
 
@@ -915,6 +921,7 @@ Open a new terminal and run the code below:
 ```bash
 docker-compose -f docker-compose.dev.yml exec web id appuser
 ```
+
 The command above just outputed the uid for appuser and gid for appgroup.
 Run the command below to give appuser the permission:
 
@@ -929,11 +936,13 @@ docker-compose -f docker-compose.dev.yml exec web python manage.py startapp web_
 ```
 
 We need to give your host user permission to be able to edit the files again. Run the command below:
+
 ```bash
 sudo chown -R $USER:$USER .
 ```
 
 The `django_celery_redis_tutorial` directory tree should look like this:
+
 ```tree
 django_celery_redis_tutorial
 ├── core/
@@ -984,4 +993,3 @@ INSTALLED_APPS = [
     "web_scrapper.apps.WebScrapperConfig",
 ]
 ```
-
