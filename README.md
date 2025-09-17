@@ -254,11 +254,14 @@ services:
     build: .
     command: >
       sh -c "python manage.py collectstatic --noinput &&
+             echo 'Running migrations...' &&
+             python manage.py makemigrations &&
              python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_data:/app/staticfiles
+      - django_migrations:/app/web_scrapper/migrations
     user: appuser
     ports:
       - "8000:8000"
@@ -314,7 +317,7 @@ services:
   # Flower Service
   flower:
     build: .
-    command: celery -A core flower --broker=${CELERY_BROKER_URL} --port=5555
+    command: celery --broker=${CELERY_BROKER_URL} -A core flower --port=5555
     volumes:
       - .:/app
     env_file:
@@ -346,6 +349,7 @@ volumes:
   pg_data:
   redis_data:
   static_data:
+  django_migrations:
 
 # Define a custom bridge network for internal communication.
 networks:
